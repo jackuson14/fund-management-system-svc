@@ -13,42 +13,90 @@ app.use(bodyParser.json());
 
 // Read data from the CSV file
 const fundsData = [];
+const portfolioFundsData = [];
+const fundsPriceData = [];
 fs.createReadStream('MutualFunds.csv')
   .pipe(csv())
   .on('data', (row) => {
     fundsData.push(row);
   })
   .on('end', () => {
-    console.log('CSV file successfully processed.');
+    console.log('1 CSV file successfully processed.');
+    //dummy data
+    portfolioFundsData.push(fundsData[0])
+    portfolioFundsData.push(fundsData[1])
+    portfolioFundsData.push(fundsData[2])
   });
-
-const fundsPriceData = [];
-// fs.createReadStream('merged-mutual-funds-prices.csv')
-// .pipe(csv())
-// .on('data', (row) => {
-//     fundsPriceData.push(row);
-// })
-// .on('end', () => {
-// console.log('CSV 2 file successfully processed.');
-// });
+fs.createReadStream('MutualFundsPrices.csv')
+.pipe(csv())
+.on('data', (row) => {
+    fundsPriceData.push(row);
+})
+.on('end', () => {
+console.log('2 CSV files successfully processed.');
+});
 
 // REST API endpoints
 
-// Get all funds
+// Get all funds with pagination
 app.get('/api/funds', (req, res) => {
-  res.json(fundsData);
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.pageSize) || 10;
+
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+
+  const paginatedFunds = fundsData.slice(startIndex, endIndex);
+
+  res.json({
+    totalItems: fundsData.length,
+    page,
+    pageSize,
+    funds: paginatedFunds,
+  });
 });
 
-// Get fund by fund_symbol
-app.get('/api/funds/:symbol', (req, res) => {
-    const fundSymbol = req.params.symbol;
-    const fund = fundsData.find((fund) => fund.fund_symbol === fundSymbol);
-    if (fund) {
-      res.json(fund);
-    } else {
-      res.status(404).json({ error: 'Fund not found' });
-    }
+// Get portfolio funds with pagination
+app.get('/api/funds/portfolio', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.pageSize) || 10;
+  
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  
+  const paginatedFunds = portfolioFundsData.slice(startIndex, endIndex);
+
+  res.json({
+    totalItems: portfolioFundsData.length,
+    page,
+    pageSize,
+    funds: paginatedFunds,
   });
+});
+
+// search query returns a list of funds
+app.get('/api/funds/search', (req, res) => {
+  const query = req.query.q;
+
+  if (!query) {
+    return res.status(400).json({ error: 'Query parameter "q" is required.' });
+  }
+
+  const filteredList = fundsData.filter(item => item.fund_long_name.toLowerCase().includes(query.toLowerCase()));
+
+  res.json(filteredList);
+});
+
+// Get historical fund prices by fund_symbol 
+app.get('/api/funds/:symbol', (req, res) => {
+  const fundSymbol = req.params.symbol;
+  const fundData = fundsData.filter((fund) => fund.fund_symbol === fundSymbol);
+  if (fundData) {
+    res.json(fundData);
+  } else {
+    res.status(404).json({ error: 'Fund not found' });
+  }
+});
 
 // Get historical fund prices by fund_symbol 
 app.get('/api/funds/:symbol/prices', (req, res) => {
