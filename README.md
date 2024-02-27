@@ -2,11 +2,13 @@
 
 ## Project Setup
 
+### Install basic packages
+
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Run project
 
 ```sh
 node server.js
